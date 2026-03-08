@@ -18,56 +18,54 @@
 </div>
 
 <script>
-  const LIKE_KEY = 'novelPageLikes';
+  const LIKE_NAMESPACE = 'ai_novel_shared_like';
+  const LIKE_KEY = 'index_md_like_count';
 
-  // 读取点赞数：优先 localStorage，失败时回退到 cookie
-  function getStoredLikes() {
+  function setLikeCount(value) {
+    document.getElementById('likeCount').textContent = Math.max(0, Number.parseInt(value, 10) || 0);
+  }
+
+  async function loadLikeCount() {
     try {
-      const value = localStorage.getItem(LIKE_KEY);
-      if (value !== null) {
-        return Number.parseInt(value, 10) || 0;
-      }
+      const response = await fetch(`https://api.countapi.xyz/get/${LIKE_NAMESPACE}/${LIKE_KEY}`);
+      const data = await response.json();
+      setLikeCount(data.value || 0);
     } catch (error) {
-      // localStorage 在某些环境（隐私模式/受限容器）可能不可用
+      console.error('加载点赞数失败：', error);
+      setLikeCount(0);
     }
-
-    const match = document.cookie.match(/(?:^|; )novelPageLikes=(\d+)/);
-    return match ? Number.parseInt(match[1], 10) || 0 : 0;
   }
 
-  // 保存点赞数：localStorage 与 cookie 双写，提升兼容性
-  function setStoredLikes(value) {
-    const safeValue = Math.max(0, Number.parseInt(value, 10) || 0);
-
+  async function increaseLikeCount() {
     try {
-      localStorage.setItem(LIKE_KEY, String(safeValue));
+      const response = await fetch(`https://api.countapi.xyz/hit/${LIKE_NAMESPACE}/${LIKE_KEY}`);
+      const data = await response.json();
+      setLikeCount(data.value || 0);
+      return true;
     } catch (error) {
-      // 忽略 localStorage 写入失败，继续尝试 cookie
+      console.error('点赞失败：', error);
+      return false;
     }
-
-    document.cookie = `novelPageLikes=${safeValue}; path=/; max-age=${60 * 60 * 24 * 365}`;
-    return safeValue;
   }
 
-  // 初始化点赞数
-  function initLikes() {
-    document.getElementById('likeCount').textContent = getStoredLikes();
-  }
-  
   // 点赞按钮事件
-  document.getElementById('likeBtn').addEventListener('click', function() {
-    const currentLikes = setStoredLikes(getStoredLikes() + 1);
-    document.getElementById('likeCount').textContent = currentLikes;
-    
+  document.getElementById('likeBtn').addEventListener('click', async function() {
+    const success = await increaseLikeCount();
+
+    if (!success) {
+      alert('点赞失败，请稍后重试');
+      return;
+    }
+
     // 添加点击动画效果
     this.style.transform = 'scale(1.1)';
     setTimeout(() => {
       this.style.transform = 'scale(1)';
     }, 200);
   });
-  
+
   // 页面加载时初始化
-  initLikes();
+  loadLikeCount();
 </script>
 
 ---
