@@ -18,17 +18,45 @@
 </div>
 
 <script>
+  const LIKE_KEY = 'novelPageLikes';
+
+  // 读取点赞数：优先 localStorage，失败时回退到 cookie
+  function getStoredLikes() {
+    try {
+      const value = localStorage.getItem(LIKE_KEY);
+      if (value !== null) {
+        return Number.parseInt(value, 10) || 0;
+      }
+    } catch (error) {
+      // localStorage 在某些环境（隐私模式/受限容器）可能不可用
+    }
+
+    const match = document.cookie.match(/(?:^|; )novelPageLikes=(\d+)/);
+    return match ? Number.parseInt(match[1], 10) || 0 : 0;
+  }
+
+  // 保存点赞数：localStorage 与 cookie 双写，提升兼容性
+  function setStoredLikes(value) {
+    const safeValue = Math.max(0, Number.parseInt(value, 10) || 0);
+
+    try {
+      localStorage.setItem(LIKE_KEY, String(safeValue));
+    } catch (error) {
+      // 忽略 localStorage 写入失败，继续尝试 cookie
+    }
+
+    document.cookie = `novelPageLikes=${safeValue}; path=/; max-age=${60 * 60 * 24 * 365}`;
+    return safeValue;
+  }
+
   // 初始化点赞数
   function initLikes() {
-    const likeCount = localStorage.getItem('novelPageLikes') || 0;
-    document.getElementById('likeCount').textContent = likeCount;
+    document.getElementById('likeCount').textContent = getStoredLikes();
   }
   
   // 点赞按钮事件
   document.getElementById('likeBtn').addEventListener('click', function() {
-    let currentLikes = parseInt(localStorage.getItem('novelPageLikes') || 0);
-    currentLikes++;
-    localStorage.setItem('novelPageLikes', currentLikes);
+    const currentLikes = setStoredLikes(getStoredLikes() + 1);
     document.getElementById('likeCount').textContent = currentLikes;
     
     // 添加点击动画效果
